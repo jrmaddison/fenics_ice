@@ -977,9 +977,12 @@ class ssa_solver:
             """
 
             M_inv_action = []
+            scale = (self.delta_alpha, self.delta_beta)
             for i, x in enumerate(X):
                 this_action = function_new_conjugate_dual(x, name=f"M_inv_action_{i}")
                 M_solver.solve(this_action.vector(), x.vector())
+                as_backend_type(this_action.vector()).vec().scale(1 / scale[i])
+                this_action.vector().apply("insert")
                 M_inv_action.append(this_action)
 
             return M_inv_action
@@ -995,11 +998,14 @@ class ssa_solver:
                 matrix_multiply
 
             B_0_action = []
+            scale = (self.delta_alpha, self.delta_beta)
             for i, x in enumerate(X):
                 this_action = function_new_conjugate_dual(x, name=f"B_0_action_{i}")
                 # M_action = M_mat * x.vector()
                 M_action = matrix_multiply(M_mat, x.vector())
                 this_action.vector()[:] = M_action
+                this_action.vector().apply("insert")
+                as_backend_type(this_action.vector()).vec().scale(scale[i])
                 this_action.vector().apply("insert")
                 B_0_action.append(this_action)
 
@@ -1099,7 +1105,7 @@ class ssa_solver:
             line_search_rank0_kwargs={"xtol": config.wolfe_xtol,
                                       "amax": config.wolfe_amax},
             H_0=H_0_fun, M=M_fun, M_inv=H_0_fun,
-            block_theta_scale=config.dual,
+            block_theta_scale=False,
             max_its=config.max_iter)
 
         self.set_control_fns(cntrl_opt)
